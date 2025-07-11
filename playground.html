@@ -27,9 +27,8 @@
 <h1>GhostScript Playground</h1>
 
 <textarea id="ghostSource" spellcheck="false">
-// Write your GhostScript code here, e.g.:
-out("Hello from GhostScript!");
-var x = 5;
+out("Hello from GhostScript!")
+var x = 5
 if (x > 2)
   out("x is greater than 2");
 </textarea>
@@ -78,7 +77,6 @@ if (x > 2)
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i].trim();
 
-      // Detect and start control block
       if (!inBlock) {
         const matchedControl = controlKeywords.some(kw => {
           const regex = new RegExp(`^${kw}(\\s|\\()`);
@@ -94,14 +92,12 @@ if (x > 2)
 
       outputLines.push(line);
 
-      // End block on semicolon
       if (inBlock && line.endsWith(';')) {
         outputLines.push('}');
         inBlock = false;
       }
     }
 
-    // If still inside a block, close it
     if (inBlock) outputLines.push('}');
 
     return outputLines.join('\n');
@@ -119,7 +115,6 @@ if (x > 2)
         } catch (e) {
           console.error('GhostScript runtime error:', e);
         }
-        // NO removal here, so the element stays but is hidden by CSS
       };
 
       if (isExternal) {
@@ -129,7 +124,6 @@ if (x > 2)
           .then(runCode)
           .catch(err => {
             console.error(`GhostScript failed to load "${src}":`, err);
-            // no removal
           });
       } else {
         runCode(block.textContent);
