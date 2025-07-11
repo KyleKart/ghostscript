@@ -87,4 +87,4 @@
     runGhostTags();
   }
 })();
-window.runGhostTags = runGhostTags;
+window.runGhostTags = runGhostTags();
