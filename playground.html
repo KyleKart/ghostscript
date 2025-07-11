@@ -33,14 +33,20 @@ if (x > 2)
   out("x is greater than 2");
 </textarea>
 
+<!-- New JavaScript output display -->
+<label>Output JavaScript:</label>
+<pre id="jsOutput">// Transformed JS will appear here</pre>
+
 <button id="runBtn">Run</button>
 
+<h2>Console output:</h2>
 <pre id="consoleOutput">// Output appears here</pre>
 
 <ghost id="runner"></ghost>
 
 <script>
   const consoleOutput = document.getElementById('consoleOutput');
+  const jsOutput = document.getElementById('jsOutput');
   const originalLog = console.log;
   const originalErr = console.error;
 
@@ -54,18 +60,10 @@ if (x > 2)
     originalErr(...args);
   };
 
-  document.getElementById('runBtn').addEventListener('click', () => {
-    const code = document.getElementById('ghostSource').value;
-    document.getElementById('runner').textContent = code;
-    consoleOutput.textContent = '';
-    runGhostTags();
-  });
-
-    function parseGhostScript(ghostSource) {
+  function parseGhostScript(ghostSource) {
     let ghostCode = ghostSource.replace(/#(\w+)/g, (_, v) => v);
 
     ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
-
     ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
 
     const lines = ghostCode.split('\n').map(line => line.trimEnd());
@@ -130,6 +128,18 @@ if (x > 2)
       }
     });
   }
+
+  document.getElementById('runBtn').addEventListener('click', () => {
+    const code = document.getElementById('ghostSource').value;
+    document.getElementById('runner').textContent = code;
+    consoleOutput.textContent = '';
+
+    // Show the transformed JS
+    const transformed = parseGhostScript(code);
+    jsOutput.textContent = transformed;
+
+    runGhostTags();
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', runGhostTags);
