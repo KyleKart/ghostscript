@@ -100,8 +100,6 @@ function parseGhostScript(ghostSource) {
       line.length > 0
     );
     if (needsSemicolon) line += ';';
-
-    outputLines.push(line);
     
     if (wsVar && line.includes(`${wsVar}.msg`)) {
       line = line.replaceAll(`${wsVar}.msg`, 'event.data');
