@@ -60,47 +60,65 @@ if (x > 2)
     originalErr(...args);
   };
 
-  function parseGhostScript(ghostSource) {
-    let ghostCode = ghostSource.replace(/#(\w+)/g, (_, v) => v);
+function parseGhostScript(ghostSource) {
+  let ghostCode = ghostSource.replace(/#(\w+)/g, (_, v) => v);
 
-    ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
-    ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
+  // Replace out(...) and err(...)
+  ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
+  ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
 
-    const lines = ghostCode.split('\n').map(line => line.trimEnd());
-    const controlKeywords = ['if', 'else if', 'else', 'for', 'while', 'switch', 'event'];
+  const lines = ghostCode.split('\n').map(line => line.trimEnd());
+  const controlKeywords = ['if', 'else if', 'else', 'for', 'while', 'switch', 'event'];
 
-    let outputLines = [];
-    let inBlock = false;
+  let outputLines = [];
+  let inBlock = false;
 
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim();
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
 
-      if (!inBlock) {
-        const matchedControl = controlKeywords.some(kw => {
-          const regex = new RegExp(`^${kw}(\\s|\\()`);
-          return regex.test(line);
-        });
-
-        if (matchedControl) {
-          outputLines.push(line + ' {');
-          inBlock = true;
-          continue;
-        }
-      }
-
-      outputLines.push(line);
-
-      if (inBlock && line.endsWith(';')) {
-        outputLines.push('}');
-        inBlock = false;
-      }
+    // Handle: var ws = wss(url)
+    const wssMatch = line.match(/^var\s+(\w+)\s*=\s*wss\((.+?)\)/);
+    if (wssMatch) {
+      const [_, varName, expr] = wssMatch;
+      outputLines.push(`var ${varName} = new WebSocket("wss://" + ${expr});`);
+      continue;
     }
 
-    if (inBlock) outputLines.push('}');
+    // Handle: from (ws)
+    const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
+    if (fromMatch) {
+      const wsVar = fromMatch[1];
+      outputLines.push(`${wsVar}.onmessage = async (event) => {`);
+      inBlock = true;
+      continue;
+    }
 
-    return outputLines.join('\n');
+    // Auto-insert semicolons for plain expressions (excluding blocks or control structures)
+    const needsSemicolon = (
+      !line.endsWith(';') &&
+      !line.endsWith('{') &&
+      !line.endsWith('}') &&
+      !controlKeywords.some(kw => line.startsWith(kw)) &&
+      !line.startsWith('from') &&
+      line.length > 0
+    );
+
+    if (needsSemicolon) line += ';';
+
+    outputLines.push(line);
+
+    // End block when line ends with ;
+    if (inBlock && line.endsWith(';')) {
+      outputLines.push('}');
+      inBlock = false;
+    }
   }
 
+  if (inBlock) outputLines.push('}');
+
+  return outputLines.join('\n');
+}
+  
   function runGhostTags() {
     const blocks = document.querySelectorAll('ghost');
 
