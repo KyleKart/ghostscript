@@ -107,14 +107,6 @@ if (x > 2)
         }
       }
 
-      outputLines.push(line);
-
-      if (inBlock && line.endsWith(';')) {
-        outputLines.push('}');
-        inBlock = false;
-      }
-    }
-
         const needsSemicolon = (
         !line.endsWith(';') &&
         !line.endsWith('{') &&
@@ -124,6 +116,14 @@ if (x > 2)
         line.length > 0
       );
       if (needsSemicolon) line += ';';
+
+      outputLines.push(line);
+
+      if (inBlock && line.endsWith(';')) {
+        outputLines.push('}');
+        inBlock = false;
+      }
+    }
 
     if (inBlock) outputLines.push('}');
 
