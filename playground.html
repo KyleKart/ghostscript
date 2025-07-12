@@ -83,10 +83,15 @@ function parseGhostScript(ghostSource) {
 
     const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
     if (fromMatch) {
-      const wsVar = fromMatch[1];
+      wsVar = fromMatch[1];
       outputLines.push(`${wsVar}.onmessage = async (event) => {`);
       inBlock = true;
       continue;
+    }
+
+    // Replace ws.msg → event.data inside from block
+    if (wsVar && line.includes(`${wsVar}.msg`)) {
+      line = line.replaceAll(`${wsVar}.msg`, 'event.data');
     }
 
     if (!inBlock) {
