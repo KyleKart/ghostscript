@@ -66,19 +66,13 @@ function parseGhostScript(ghostSource) {
   ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
 
   const lines = ghostCode.split('\n').map(line => line.trimEnd());
-  const controlKeywords = ['if', 'else if', 'else', 'for', 'while', 'switch', 'event'];
+  const controlKeywords = ['if', 'else if', 'else', 'for', 'while', 'switch'];
 
   let outputLines = [];
   let inBlock = false;
-  let currentFromWS = null;
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i].trim();
-
-    if (line === '') {
-      outputLines.push('');
-      continue;
-    }
 
     const wssMatch = line.match(/^var\s+(\w+)\s*=\s*wss\((.+?)\)/);
     if (wssMatch) {
@@ -89,38 +83,34 @@ function parseGhostScript(ghostSource) {
 
     const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
     if (fromMatch) {
-      currentFromWS = fromMatch[1];
-      outputLines.push(`${currentFromWS}.onmessage = async (event) => {`);
+      const wsVar = fromMatch[1];
+      outputLines.push(`${wsVar}.onmessage = async (event) => {`);
       inBlock = true;
       continue;
     }
 
-    if (currentFromWS && line.includes(`${currentFromWS}.msg`)) {
-      line = line.replaceAll(`${currentFromWS}.msg`, 'event.data');
-    }
+    if (!inBlock) {
+      const matchedControl = controlKeywords.some(kw => {
+        const regex = new RegExp(`^${kw}(\\s|\\()`);
+        return regex.test(line);
+      });
 
-    const needsSemicolon = (
-      !line.endsWith(';') &&
-      !line.endsWith('{') &&
-      !line.endsWith('}') &&
-      !controlKeywords.some(kw => line.startsWith(kw)) &&
-      !line.startsWith('from') &&
-      line.length > 0
-    );
-    if (needsSemicolon) line += ';';
+      if (matchedControl) {
+        outputLines.push(line + ' {');
+        inBlock = true;
+        continue;
+      }
+    }
 
     outputLines.push(line);
 
     if (inBlock && line.endsWith(';')) {
       outputLines.push('}');
       inBlock = false;
-      currentFromWS = null;
     }
   }
 
-  if (inBlock) {
-    outputLines.push('}');
-  }
+  if (inBlock) outputLines.push('}');
 
   return outputLines.join('\n');
 }
