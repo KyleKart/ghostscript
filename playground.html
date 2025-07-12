@@ -75,13 +75,6 @@ if (x > 2)
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i].trim();
 
-      const wssMatch = line.match(/^var\s+(\w+)\s*=\s*wss\((.+?)\)/);
-      if (wssMatch) {
-        const [_, varName, expr] = wssMatch;
-        outputLines.push(`var ${varName} = new WebSocket("wss://" + ${expr});`);
-        continue;
-      }
-
       const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
       if (fromMatch) {
         wsVar = fromMatch[1];
@@ -109,6 +102,12 @@ if (x > 2)
       if (inBlock && line.endsWith(';')) {
         outputLines.push('}');
         inBlock = false;
+      }
+      const wssMatch = line.match(/^var\s+(\w+)\s*=\s*wss\((.+?)\)/);
+      if (wssMatch) {
+        const [_, varName, expr] = wssMatch;
+        outputLines.push(`var ${varName} = new WebSocket("wss://" + ${expr});`);
+        continue;
       }
 
         const needsSemicolon = (
