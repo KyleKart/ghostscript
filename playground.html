@@ -106,6 +106,10 @@ if (x > 2)
           continue;
         }
       }
+      if (inBlock && line.endsWith(';')) {
+        outputLines.push('}');
+        inBlock = false;
+      }
 
         const needsSemicolon = (
         !line.endsWith(';') &&
@@ -118,11 +122,6 @@ if (x > 2)
       if (needsSemicolon) line += ';';
 
       outputLines.push(line);
-
-      if (inBlock && line.endsWith(';')) {
-        outputLines.push('}');
-        inBlock = false;
-      }
     }
 
     if (inBlock) outputLines.push('}');
