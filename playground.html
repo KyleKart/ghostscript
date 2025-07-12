@@ -91,6 +91,10 @@ function parseGhostScript(ghostSource) {
       continue;
     }
 
+    if (wsVar && line.includes(`${wsVar}.msg`)) {
+      line = line.replaceAll(`${wsVar}.msg`, 'event.data');
+    }
+
     const needsSemicolon = (
       !line.endsWith(';') &&
       !line.endsWith('{') &&
@@ -100,10 +104,6 @@ function parseGhostScript(ghostSource) {
       line.length > 0
     );
     if (needsSemicolon) line += ';';
-    
-    if (wsVar && line.includes(`${wsVar}.msg`)) {
-      line = line.replaceAll(`${wsVar}.msg`, 'event.data');
-    }
 
     if (!inBlock) {
       const matchedControl = controlKeywords.some(kw => {
