@@ -80,7 +80,9 @@ function parseGhostScript(ghostSource) {
       outputLines.push(`var ${varName} = new WebSocket("wss://" + ${expr});`);
       continue;
     }
-
+    
+    let wsVar = null;
+    
     const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
     if (fromMatch) {
       wsVar = fromMatch[1];
