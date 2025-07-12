@@ -33,7 +33,6 @@ if (x > 2)
   out("x is greater than 2");
 </textarea>
 
-<!-- New JavaScript output display -->
 <label>Output JavaScript:</label>
 <pre id="jsOutput">// Transformed JS will appear here</pre>
 
@@ -63,7 +62,6 @@ if (x > 2)
 function parseGhostScript(ghostSource) {
   let ghostCode = ghostSource.replace(/#(\w+)/g, (_, v) => v);
 
-  // Replace out(...) and err(...)
   ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
   ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
 
@@ -72,11 +70,16 @@ function parseGhostScript(ghostSource) {
 
   let outputLines = [];
   let inBlock = false;
+  let currentFromWS = null;
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i].trim();
 
-    // Handle: var ws = wss(url)
+    if (line === '') {
+      outputLines.push('');
+      continue;
+    }
+
     const wssMatch = line.match(/^var\s+(\w+)\s*=\s*wss\((.+?)\)/);
     if (wssMatch) {
       const [_, varName, expr] = wssMatch;
@@ -84,16 +87,18 @@ function parseGhostScript(ghostSource) {
       continue;
     }
 
-    // Handle: from (ws)
     const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
     if (fromMatch) {
-      const wsVar = fromMatch[1];
-      outputLines.push(`${wsVar}.onmessage = async (event) => {`);
+      currentFromWS = fromMatch[1];
+      outputLines.push(`${currentFromWS}.onmessage = async (event) => {`);
       inBlock = true;
       continue;
     }
 
-    // Auto-insert semicolons for plain expressions (excluding blocks or control structures)
+    if (currentFromWS && line.includes(`${currentFromWS}.msg`)) {
+      line = line.replaceAll(`${currentFromWS}.msg`, 'event.data');
+    }
+
     const needsSemicolon = (
       !line.endsWith(';') &&
       !line.endsWith('{') &&
@@ -102,19 +107,20 @@ function parseGhostScript(ghostSource) {
       !line.startsWith('from') &&
       line.length > 0
     );
-
     if (needsSemicolon) line += ';';
 
     outputLines.push(line);
 
-    // End block when line ends with ;
     if (inBlock && line.endsWith(';')) {
       outputLines.push('}');
       inBlock = false;
+      currentFromWS = null;
     }
   }
 
-  if (inBlock) outputLines.push('}');
+  if (inBlock) {
+    outputLines.push('}');
+  }
 
   return outputLines.join('\n');
 }
