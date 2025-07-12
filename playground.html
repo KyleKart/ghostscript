@@ -91,9 +91,9 @@ function parseGhostScript(ghostSource) {
       continue;
     }
 
-    if (wsVar && line.includes(`${wsVar}.msg`)) {
-      line = line.replaceAll(`${wsVar}.msg`, 'event.data');
-    }
+  if (inBlock && wsVar && line.includes(`${wsVar}.msg`)) {
+    line = line.replaceAll(`${wsVar}.msg`, 'event.data');
+  }
 
     const needsSemicolon = (
       !line.endsWith(';') &&
