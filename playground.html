@@ -87,22 +87,6 @@ if (x > 2)
         line = line.replaceAll(`${wsVar}.msg`, 'event.data');
       }
 
-      if (!inBlock) {
-        const matchedControl = controlKeywords.some(kw => {
-          const regex = new RegExp(`^${kw}(\\s|\\()`);
-          return regex.test(line);
-        });
-
-        if (matchedControl) {
-          outputLines.push(line + ' {');
-          inBlock = true;
-          continue;
-        }
-      }
-      if (inBlock && line.endsWith(';')) {
-        outputLines.push('}');
-        inBlock = false;
-      }
       const wssMatch = line.match(/^var\s+(\w+)\s*=\s*wss\((.+?)\)/);
       if (wssMatch) {
         const [_, varName, expr] = wssMatch;
@@ -120,6 +104,19 @@ if (x > 2)
       );
       if (needsSemicolon) line += ';';
 
+      if (!inBlock) {
+        const matchedControl = controlKeywords.some(kw => {
+          const regex = new RegExp(`^${kw}(\\s|\\()`);
+          return regex.test(line);
+        });
+
+        if (matchedControl) {
+          outputLines.push(line + ' {');
+          inBlock = true;
+          continue;
+        }
+      }
+      
       outputLines.push(line);
 
         if (inBlock && line.endsWith(';')) {
