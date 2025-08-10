@@ -109,7 +109,7 @@ if (x > 2)
       ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
 
       const lines = ghostCode.split('\n').map(line => line.trimEnd());
-      const controlKeywords = ['if', 'else if', 'else', 'while', 'switch'];
+      const controlKeywords = ['if', 'else if', 'else', 'while', 'switch', 'for'];
 
       let outputLines = [];
       let inBlock = false;
