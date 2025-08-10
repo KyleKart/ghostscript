@@ -165,9 +165,6 @@ if (x > 2)
           outputLines.push('}');
           inBlock = false;
         }
-        if (needsSemicolon) {
-          line += ';';
-        }
       }
 
       if (inBlock) outputLines.push('}');
