@@ -64,6 +64,7 @@ if (x > 2)
 
     ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
     ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
+    ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
 
     const lines = ghostCode.split('\n').map(line => line.trimEnd());
     const controlKeywords = ['if', 'else if', 'else', 'while', 'switch'];
@@ -87,7 +88,7 @@ if (x > 2)
         line = line.replaceAll(`${wsVar}.msg`, 'event.data');
       }
 
-      const wssMatch = line.match(/^var\s+(\w+)\s*=\s*wss\((.+?)\)/);
+      const wssMatch = line.match(/^let\s+(\w+)\s*=\s*wss\((.+?)\)/);
       if (wssMatch) {
         const [_, varName, expr] = wssMatch;
         outputLines.push(`let ${varName} = new WebSocket("wss://" + ${expr});`);
@@ -125,7 +126,6 @@ if (x > 2)
     }
 
     if (inBlock) outputLines.push('}');
-    ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
     return outputLines.join('\n');
   }
   
