@@ -101,80 +101,89 @@ if (x > 2)
       originalErr(...args);
     };
 
-function parseGhostScript(ghostSource) {
-  let ghostCode = ghostSource.replace(/#(\w+)/g, (_, v) => v);
+    function parseGhostScript(ghostSource) {
+      let ghostCode = ghostSource.replace(/#(\w+)/g, (_, v) => v);
 
-  ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
-  ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
-  ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
-  ghostCode = ghostCode.replace(/for\s*\(\s*(\d+)\s*\)/, 'for (let i = 0; i < $1; i++)');
+      ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
+      ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
+      ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
+      ghostCode = ghostCode.replace(/for\s*\(\s*(\d+)\s*\)/, 'for (let i = 0; i < $1; i++)');
 
-  const lines = ghostCode.split('\n').map(line => line.trim());
-  const controlKeywords = ['if', 'else if', 'else', 'while', 'switch', 'for'];
+      const lines = ghostCode.split('\n').map(line => line.trim());
+      const controlKeywords = ['if', 'else if', 'else', 'while', 'switch', 'for', 'per'];
 
-  let outputLines = [];
-  let blockStack = [];
-  let wsVar = null;
+      let outputLines = [];
+      let blockStack = [];
+      let wsVar = null;
 
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
 
-    // Handle 'from(wsVar)' blocks
-    const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
-    if (fromMatch) {
-      wsVar = fromMatch[1];
-      outputLines.push(`${wsVar}.onmessage = async (event) => {`);
-      blockStack.push('from');
-      continue;
+        // Handle 'from(wsVar)' blocks
+        const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
+        if (fromMatch) {
+          wsVar = fromMatch[1];
+          outputLines.push(`${wsVar}.onmessage = async (event) => {`);
+          blockStack.push('from');
+          continue;
+        }
+
+        const perMatch = line.match(/^per\s*\(\s*(\d+)\s*\)$/);
+        if (perMatch) {
+          const n = perMatch[1];
+          outputLines.push(`if (i % ${n} === 0) {`);
+          blockStack.push('block');  // open block for this if
+          continue;
+        }
+
+
+        // Replace wsVar.msg inside from block
+        if (blockStack.includes('from') && wsVar && line.includes(`${wsVar}.msg`)) {
+          line = line.replaceAll(`${wsVar}.msg`, 'event.data');
+        }
+
+        // Handle WebSocket shorthand
+        const wssMatch = line.match(/^let\s+(\w+)\s*=\s*wss\((.+?)\)/);
+        if (wssMatch) {
+          const [_, varName, expr] = wssMatch;
+          outputLines.push(`let ${varName} = new WebSocket("wss://" + ${expr});`);
+          continue;
+        }
+
+        // Skip empty lines and comments
+        if (line === '' || line.startsWith('#') || line.startsWith('//')) {
+          continue;
+        }
+
+        // Check if line starts a control block
+        const matchedControl = controlKeywords.some(kw => {
+          const regex = new RegExp(`^${kw}(\\s|\\()`);
+          return regex.test(line);
+        });
+
+        if (matchedControl) {
+          outputLines.push(line + ' {');
+          blockStack.push('block');
+          continue;
+        }
+
+        outputLines.push(line);
+
+        // If line ends with semicolon, close the current block if any
+        if (line.endsWith(';') && blockStack.length > 0) {
+          outputLines.push('}');
+          blockStack.pop();
+        }
+      }
+
+      // Close any remaining open blocks
+      while (blockStack.length > 0) {
+        outputLines.push('}');
+        blockStack.pop();
+      }
+
+      return outputLines.join('\n');
     }
-
-    // Replace wsVar.msg inside from block
-    if (blockStack.includes('from') && wsVar && line.includes(`${wsVar}.msg`)) {
-      line = line.replaceAll(`${wsVar}.msg`, 'event.data');
-    }
-
-    // Handle WebSocket shorthand
-    const wssMatch = line.match(/^let\s+(\w+)\s*=\s*wss\((.+?)\)/);
-    if (wssMatch) {
-      const [_, varName, expr] = wssMatch;
-      outputLines.push(`let ${varName} = new WebSocket("wss://" + ${expr});`);
-      continue;
-    }
-
-    // Skip empty lines and comments
-    if (line === '' || line.startsWith('#') || line.startsWith('//')) {
-      continue;
-    }
-
-    // Check if line starts a control block
-    const matchedControl = controlKeywords.some(kw => {
-      const regex = new RegExp(`^${kw}(\\s|\\()`);
-      return regex.test(line);
-    });
-
-    if (matchedControl) {
-      outputLines.push(line + ' {');
-      blockStack.push('block');
-      continue;
-    }
-
-    outputLines.push(line);
-
-    // If line ends with semicolon, close the current block if any
-    if (line.endsWith(';') && blockStack.length > 0) {
-      outputLines.push('}');
-      blockStack.pop();
-    }
-  }
-
-  // Close any remaining open blocks
-  while (blockStack.length > 0) {
-    outputLines.push('}');
-    blockStack.pop();
-  }
-
-  return outputLines.join('\n');
-}
 
 
     function runGhostTags() {
