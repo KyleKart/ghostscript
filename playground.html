@@ -1,14 +1,52 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8" />
   <title>GhostScript Playground</title>
   <style>
-    body { font-family: sans-serif; margin: 20px; background: #f0f0f0; color: #333; }
-    textarea { width: 100%; height: 200px; font-family: monospace; font-size: 14px; margin-bottom: 10px; padding: 10px; box-sizing: border-box; resize: vertical; }
-    button { padding: 10px 15px; font-size: 16px; cursor: pointer; margin-right: 10px; }
-    pre { background: #222; color: #eee; padding: 15px; overflow-x: auto; white-space: pre-wrap; border-radius: 4px; margin-top: 20px; min-height: 100px; }
-    label { font-weight: bold; display: block; margin-top: 20px; }
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    textarea {
+      width: 100%;
+      height: 200px;
+      font-family: monospace;
+      font-size: 14px;
+      margin-bottom: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+      resize: vertical;
+    }
+
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    pre {
+      background: #222;
+      color: #eee;
+      padding: 15px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      border-radius: 4px;
+      margin-top: 20px;
+      min-height: 100px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 20px;
+    }
+
     #consoleOutput {
       background: #000;
       color: #0f0;
@@ -19,161 +57,169 @@
       overflow-y: auto;
       white-space: pre-wrap;
     }
-    ghost { display: none !important; }
+
+    ghost {
+      display: none !important;
+    }
   </style>
 </head>
+
 <body>
 
-<h1>GhostScript Playground</h1>
+  <h1>GhostScript Playground</h1>
 
-<textarea id="ghostSource" spellcheck="false">
+  <textarea id="ghostSource" spellcheck="false">
 out("Hello from GhostScript!")
 var x = 5
 if (x > 2)
   out("x is greater than 2");
 </textarea>
 
-<label>Output JavaScript:</label>
-<pre id="jsOutput">// Transformed JS will appear here</pre>
+  <label>Output JavaScript:</label>
+  <pre id="jsOutput">// Transformed JS will appear here</pre>
 
-<button id="runBtn">Run</button>
+  <button id="runBtn">Run</button>
 
-<h2>Console output:</h2>
-<pre id="consoleOutput">// Output appears here</pre>
+  <h2>Console output:</h2>
+  <pre id="consoleOutput">// Output appears here</pre>
 
-<ghost id="runner"></ghost>
+  <ghost id="runner"></ghost>
 
-<script>
-  const consoleOutput = document.getElementById('consoleOutput');
-  const jsOutput = document.getElementById('jsOutput');
-  const originalLog = console.log;
-  const originalErr = console.error;
+  <script>
+    const consoleOutput = document.getElementById('consoleOutput');
+    const jsOutput = document.getElementById('jsOutput');
+    const originalLog = console.log;
+    const originalErr = console.error;
 
-  console.log = (...args) => {
-    consoleOutput.textContent += args.join(' ') + '\n';
-    originalLog(...args);
-  };
+    console.log = (...args) => {
+      consoleOutput.textContent += args.join(' ') + '\n';
+      originalLog(...args);
+    };
 
-  console.error = (...args) => {
-    consoleOutput.textContent += '[ERR] ' + args.join(' ') + '\n';
-    originalErr(...args);
-  };
+    console.error = (...args) => {
+      consoleOutput.textContent += '[ERR] ' + args.join(' ') + '\n';
+      originalErr(...args);
+    };
 
-  function parseGhostScript(ghostSource) {
-    let ghostCode = ghostSource.replace(/#(\w+)/g, (_, v) => v);
+    function parseGhostScript(ghostSource) {
+      let ghostCode = ghostSource.replace(/#(\w+)/g, (_, v) => v);
 
-    ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
-    ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
-    ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
+      ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
+      ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
+      ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
 
-    const lines = ghostCode.split('\n').map(line => line.trimEnd());
-    const controlKeywords = ['if', 'else if', 'else', 'while', 'switch'];
+      const lines = ghostCode.split('\n').map(line => line.trimEnd());
+      const controlKeywords = ['if', 'else if', 'else', 'while', 'switch'];
 
-    let outputLines = [];
-    let inBlock = false;
-    let wsVar = null;
+      let outputLines = [];
+      let inBlock = false;
+      let wsVar = null;
 
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim();
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
 
-      const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
-      if (fromMatch) {
-        wsVar = fromMatch[1];
-        outputLines.push(`${wsVar}.onmessage = async (event) => {`);
-        inBlock = true;
-        continue;
-      }
-
-      if (inBlock && wsVar && line.includes(`${wsVar}.msg`)) {
-        line = line.replaceAll(`${wsVar}.msg`, 'event.data');
-      }
-
-      const wssMatch = line.match(/^let\s+(\w+)\s*=\s*wss\((.+?)\)/);
-      if (wssMatch) {
-        const [_, varName, expr] = wssMatch;
-        outputLines.push(`let ${varName} = new WebSocket("wss://" + ${expr});`);
-        continue;
-      }
-
-        const needsSemicolon = (
-        !line.endsWith(';') &&
-        !line.endsWith('{') &&
-        !line.endsWith('}') &&
-        !controlKeywords.some(kw => line.startsWith(kw)) &&
-        !line.startsWith('from') &&
-        line.length > 0
-      );
-
-      if (!inBlock) {
-        const matchedControl = controlKeywords.some(kw => {
-          const regex = new RegExp(`^${kw}(\\s|\\()`);
-          return regex.test(line);
-        });
-
-        if (matchedControl) {
-          outputLines.push(line + ' {');
+        const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
+        if (fromMatch) {
+          wsVar = fromMatch[1];
+          outputLines.push(`${wsVar}.onmessage = async (event) => {`);
           inBlock = true;
           continue;
         }
-      }
-      
-      outputLines.push(line);
+
+        if (inBlock && wsVar && line.includes(`${wsVar}.msg`)) {
+          line = line.replaceAll(`${wsVar}.msg`, 'event.data');
+        }
+
+        const wssMatch = line.match(/^let\s+(\w+)\s*=\s*wss\((.+?)\)/);
+        if (wssMatch) {
+          const [_, varName, expr] = wssMatch;
+          outputLines.push(`let ${varName} = new WebSocket("wss://" + ${expr});`);
+          continue;
+        }
+
+        const needsSemicolon = (
+          !line.endsWith(';') &&
+          !line.endsWith('{') &&
+          !line.endsWith('}') &&
+          !controlKeywords.some(kw => line.startsWith(kw)) &&
+          !line.startsWith('from') &&
+          line.length > 0
+        );
+        if (needsSemicolon) {
+          line += ';';
+        }
+
+        if (!inBlock) {
+          const matchedControl = controlKeywords.some(kw => {
+            const regex = new RegExp(`^${kw}(\\s|\\()`);
+            return regex.test(line);
+          });
+
+          if (matchedControl) {
+            outputLines.push(line + ' {');
+            inBlock = true;
+            continue;
+          }
+        }
+
+        outputLines.push(line);
 
         if (inBlock && line.endsWith(';')) {
-        outputLines.push('}');
-        inBlock = false;
+          outputLines.push('}');
+          inBlock = false;
+        }
       }
+
+      if (inBlock) outputLines.push('}');
+      return outputLines.join('\n');
     }
 
-    if (inBlock) outputLines.push('}');
-    return outputLines.join('\n');
-  }
-  
-  function runGhostTags() {
-    const blocks = document.querySelectorAll('ghost');
+    function runGhostTags() {
+      const blocks = document.querySelectorAll('ghost');
 
-    blocks.forEach(block => {
-      const isExternal = block.hasAttribute('src');
-      const runCode = code => {
-        const parsed = parseGhostScript(code);
-        try {
-          eval(parsed);
-        } catch (e) {
-          console.error('GhostScript runtime error:', e);
+      blocks.forEach(block => {
+        const isExternal = block.hasAttribute('src');
+        const runCode = code => {
+          const parsed = parseGhostScript(code);
+          try {
+            eval(parsed);
+          } catch (e) {
+            console.error('GhostScript runtime error:', e);
+          }
+        };
+
+        if (isExternal) {
+          const src = block.getAttribute('src');
+          fetch(src)
+            .then(res => res.text())
+            .then(runCode)
+            .catch(err => {
+              console.error(`GhostScript failed to load "${src}":`, err);
+            });
+        } else {
+          runCode(block.textContent);
         }
-      };
+      });
+    }
 
-      if (isExternal) {
-        const src = block.getAttribute('src');
-        fetch(src)
-          .then(res => res.text())
-          .then(runCode)
-          .catch(err => {
-            console.error(`GhostScript failed to load "${src}":`, err);
-          });
-      } else {
-        runCode(block.textContent);
-      }
+    document.getElementById('runBtn').addEventListener('click', () => {
+      const code = document.getElementById('ghostSource').value;
+      document.getElementById('runner').textContent = code;
+      consoleOutput.textContent = '';
+
+      const transformed = parseGhostScript(code);
+      jsOutput.textContent = transformed;
+
+      runGhostTags();
     });
-  }
 
-  document.getElementById('runBtn').addEventListener('click', () => {
-    const code = document.getElementById('ghostSource').value;
-    document.getElementById('runner').textContent = code;
-    consoleOutput.textContent = '';
-
-    const transformed = parseGhostScript(code);
-    jsOutput.textContent = transformed;
-
-    runGhostTags();
-  });
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', runGhostTags);
-  } else {
-    runGhostTags();
-  }
-</script>
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', runGhostTags);
+    } else {
+      runGhostTags();
+    }
+  </script>
 
 </body>
+
 </html>
