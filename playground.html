@@ -91,7 +91,7 @@ if (x > 2)
       const wssMatch = line.match(/^var\s+(\w+)\s*=\s*wss\((.+?)\)/);
       if (wssMatch) {
         const [_, varName, expr] = wssMatch;
-        outputLines.push(`var ${varName} = new WebSocket("wss://" + ${expr});`);
+        outputLines.push(`let ${varName} = new WebSocket("wss://" + ${expr});`);
         continue;
       }
 
