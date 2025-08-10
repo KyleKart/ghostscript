@@ -107,6 +107,7 @@ if (x > 2)
       ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
       ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
       ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
+      ghostCode = ghostCode.replace(/for\s*\(\s*(\d+)\s*\)/, 'for (let i = 0; i < $1; i++)');
 
       const lines = ghostCode.split('\n').map(line => line.trimEnd());
       const controlKeywords = ['if', 'else if', 'else', 'while', 'switch', 'for'];
