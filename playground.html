@@ -145,9 +145,6 @@ if (x > 2)
           !line.startsWith('from') &&
           line.length > 0
         );
-        if (needsSemicolon) {
-          line += ';';
-        }
 
         if (!inBlock) {
           const matchedControl = controlKeywords.some(kw => {
@@ -167,6 +164,9 @@ if (x > 2)
         if (inBlock && line.endsWith(';')) {
           outputLines.push('}');
           inBlock = false;
+        }
+        if (needsSemicolon) {
+          line += ';';
         }
       }
 
