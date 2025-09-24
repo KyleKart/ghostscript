@@ -108,7 +108,7 @@ if (x > 2)
       ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
       ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
       ghostCode = ghostCode.replace(/for\s*\(\s*(\d+)\s*\)/, 'for (let i = 0; i < $1; i++)');
-      ghostCode = ghostCode.replace(/borrow\s+"(\w+)"/g, 'const $1 = await import("./$1.js")');
+      ghostCode = ghostCode.replace(/borrow\s+"(\w+)"/g, 'const $1 = await import("../ghost-modules/$1.js")');
 
       const lines = ghostCode.split('\n').map(line => line.trim());
       const controlKeywords = ['if', 'else if', 'else', 'while', 'switch', 'for', 'per'];
