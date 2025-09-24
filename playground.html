@@ -179,16 +179,21 @@ if (x > 2)
       return outputLines.join('\n');
     }
 
-    async function runGhostTags() {
+
+    function runGhostTags() {
       const blocks = document.querySelectorAll('ghost');
 
-      for (const block of blocks) {
+      blocks.forEach(block => {
         const isExternal = block.hasAttribute('src');
-
-        const runCode = async (code) => {
+        const runCode = code => {
           const parsed = parseGhostScript(code);
           try {
-            await (async () => { eval(parsed); })();
+            const asyncCode = `
+  (async () => {
+    ${parsed}
+  })();
+`;
+            eval(asyncCode);
           } catch (e) {
             console.error('GhostScript runtime error:', e);
           }
@@ -196,17 +201,16 @@ if (x > 2)
 
         if (isExternal) {
           const src = block.getAttribute('src');
-          try {
-            const res = await fetch(src);
-            const code = await res.text();
-            await runCode(code);
-          } catch (err) {
-            console.error(`GhostScript failed to load "${src}":`, err);
-          }
+          fetch(src)
+            .then(res => res.text())
+            .then(runCode)
+            .catch(err => {
+              console.error(`GhostScript failed to load "${src}":`, err);
+            });
         } else {
-          await runCode(block.textContent);
+          runCode(block.textContent);
         }
-      }
+      });
     }
 
     document.getElementById('runBtn').addEventListener('click', () => {
