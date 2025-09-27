@@ -1,6 +1,6 @@
 // phaser.js
 
-const phaserReady = import('https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js')
+const phaserReady = import('https://cdn.jsdelivr.net/npm/phaser@3.85.2/dist/phaser-arcade-physics.min.js')
   .then(() => {
     console.log('Phaser loaded automatically');
     return window.Phaser;
