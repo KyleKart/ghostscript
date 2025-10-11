@@ -26,7 +26,6 @@ export class Extension {
                     acc[v.name] = v;
                     return acc;
                 }, {}),
-                extensions: ["colours_looks"]
             })),
             menus: _menus
         };
