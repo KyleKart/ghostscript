@@ -14,7 +14,6 @@ export function menus(object) {
     _menus = object;
 }
 
-// Export the Extension class
 export class Extension {
     getInfo() {
         return {
