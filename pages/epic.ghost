@@ -1,0 +1,4 @@
+borrow "html"
+
+html.h1("Amazing wbesite, right?")
+html.p("This page was made in ghostscript.")
