@@ -5,4 +5,4 @@ var app = html.div({ id: "app" }, [
     html.p("This page was made in ghostscript.")
 ]);
 
-html.body.append(app);
+html.body.append(app)
