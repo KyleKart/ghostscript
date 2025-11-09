@@ -1,0 +1,5 @@
+out("Hello from GhostScript!")
+var x = 5
+if (x > 2)
+  out("x is greater than 2")
+end
