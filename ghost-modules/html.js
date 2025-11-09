@@ -20,6 +20,9 @@ export function el(tag, attrs = {}, children = []) {
   return element;
 }
 
+export const body = document.body;
+export const head = document.head;
+
 export const div = (...args) => el("div", ...args);
 export const p = (...args) => el("p", ...args);
 export const span = (...args) => el("span", ...args);
