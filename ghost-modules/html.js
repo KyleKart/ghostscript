@@ -14,7 +14,15 @@ export function el(tag, attrs = {}, children = []) {
   if (!Array.isArray(children)) children = [children];
 
   for (const child of children) {
-    element.append(child instanceof Node ? child : document.createTextNode(child));
+    if (child instanceof Node) {
+      element.append(child);
+    } else if (typeof child === "string" || typeof child === "number") {
+      element.append(document.createTextNode(child));
+    } else if (Array.isArray(child)) {
+      child.forEach(c => {
+        element.append(c instanceof Node ? c : document.createTextNode(c));
+      });
+    }
   }
 
   return element;
