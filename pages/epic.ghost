@@ -1,7 +1,7 @@
 borrow "html"
 
 var app = html.div({ id: "app" }, [
-    html.h1("Amazing wbesite, right?")
+    html.h1("Amazing wbesite, right?"),
     html.p("This page was made in ghostscript.")
 ])
 
