@@ -1,6 +1,22 @@
 // html.js
 
-export function el(tag, attrs = {}, children = []) {
+export function el(tag, attrsOrChildren = {}, maybeChildren) {
+  let attrs, children;
+
+  if (
+    attrsOrChildren == null ||
+    Array.isArray(attrsOrChildren) ||
+    typeof attrsOrChildren === "string" ||
+    typeof attrsOrChildren === "number" ||
+    attrsOrChildren instanceof Node
+  ) {
+    attrs = {};
+    children = attrsOrChildren;
+  } else {
+    attrs = attrsOrChildren || {};
+    children = maybeChildren;
+  }
+
   const element = document.createElement(tag);
 
   for (const [key, value] of Object.entries(attrs)) {
@@ -16,16 +32,27 @@ export function el(tag, attrs = {}, children = []) {
   for (const child of children) {
     if (child instanceof Node) {
       element.append(child);
+    } else if (Array.isArray(child)) {
+      if (child.every(c => typeof c === "string" || typeof c === "number")) {
+        element.append(document.createTextNode(child.join("")));
+      } else {
+        child.forEach(c => {
+          element.append(c instanceof Node ? c : document.createTextNode(c));
+        });
+      }
     } else if (typeof child === "string" || typeof child === "number") {
       element.append(document.createTextNode(child));
-    } else if (Array.isArray(child)) {
-      child.forEach(c => {
-        element.append(c instanceof Node ? c : document.createTextNode(c));
-      });
+    }
+    else if (child && child.__isTextNode) {
+      element.append(document.createTextNode(child.value));
     }
   }
 
   return element;
+}
+
+export function text(str) {
+  return { __isTextNode: true, value: str };
 }
 
 export const body = document.body;
