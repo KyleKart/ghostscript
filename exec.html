@@ -10,8 +10,7 @@ const params = new URLSearchParams(location.search);
 const scriptURL = params.get("script");
 
 function parseGhostScript(ghostSource) {
-  let ghostCode = ghostSource.replace(/#(\w+)/g, (_, v) => v);
-
+  let ghostCode = ghostSource;
   ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
   ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
   ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
