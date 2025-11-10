@@ -20,7 +20,7 @@ var style = html.style([
 html.head.append(style)
 
 var app = html.div([
-    html.h1("Amazing wbesite, right?"),
+    html.h1("Amazing website, right?"),
     html.p("This page was made in ghostscript.")
 ])
 
