@@ -1,27 +1,28 @@
 borrow "html"
 
-var style = html.style([
-  `
+var style = html.style([`
   body {
     font-family: sans-serif;
-    background: #3c80ffff;
+    background: #3c80ff;
   }
 
   h1 {
-    color: #f8f8f8ff;
+    color: #f8f8f8;
   }
 
   p {
-    color: #d1d1d1ff;
+    color: #d1d1d1;
   }
-  `
-])
+`])
 
+var title = html.title("Amazing website, right?")
+
+html.head.append(title)
 html.head.append(style)
 
 var app = html.div([
-    html.h1("Amazing website, right?"),
-    html.p("This page was made in ghostscript.")
+  html.h1("Amazing website, right?"),
+  html.p("This page was made in ghostscript.")
 ])
 
 html.body.append(app)
