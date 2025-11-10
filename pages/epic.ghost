@@ -15,7 +15,7 @@ var style = html.style([`
   }
 `])
 
-var title = html.title("Amazing website, right?")
+var title = html.title("Epic website!")
 
 html.head.append(title)
 html.head.append(style)
