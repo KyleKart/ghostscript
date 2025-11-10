@@ -1,6 +1,6 @@
 borrow "html"
 
-var app = html.div({ id: "app" }, [
+var app = html.div([
     html.h1("Amazing wbesite, right?"),
     html.p("This page was made in ghostscript.")
 ])
