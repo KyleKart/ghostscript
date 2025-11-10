@@ -1,5 +1,23 @@
 borrow "html"
 
+var style = html.style([
+  `
+  h1 {
+    font-size: 2rem;
+    color: #222;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #555;
+  }
+  `
+])
+
+html.head.append(style)
+
 var app = html.div([
     html.h1("Amazing wbesite, right?"),
     html.p("This page was made in ghostscript.")
