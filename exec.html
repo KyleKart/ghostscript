@@ -27,7 +27,7 @@ function parseGhostScript(ghostSource) {
   let wsVar = null;
 
   for (let line of lines) {
-    if (line === '' || line.startsWith('#') || line.startsWith('//')) continue;
+    if (line === '' || line.startsWith('//')) continue;
 
     const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
     if (fromMatch) {
