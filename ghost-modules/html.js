@@ -30,25 +30,22 @@ export function el(tag, attrsOrChildren = {}, maybeChildren) {
   if (!Array.isArray(children)) children = [children];
 
   for (const child of children) {
-    if (child instanceof Node) {
-      element.append(child);
-    } else if (Array.isArray(child)) {
-      if (child.every(c => typeof c === "string" || typeof c === "number")) {
-        element.append(document.createTextNode(child.join("")));
-      } else {
-        child.forEach(c => {
-          element.append(c instanceof Node ? c : document.createTextNode(c));
-        });
-      }
-    } else if (typeof child === "string" || typeof child === "number") {
-      element.append(document.createTextNode(child));
-    }
-    else if (child && child.__isTextNode) {
-      element.append(document.createTextNode(child.value));
-    }
+    appendChild(element, child);
   }
 
   return element;
+}
+
+function appendChild(element, child) {
+  if (child instanceof Node) {
+    element.append(child);
+  } else if (Array.isArray(child)) {
+    child.forEach(c => appendChild(element, c));
+  } else if (child && child.__isTextNode) {
+    element.append(document.createTextNode(child.value));
+  } else if (typeof child === "string" || typeof child === "number") {
+    element.append(document.createTextNode(child));
+  }
 }
 
 export function text(str) {
