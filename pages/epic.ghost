@@ -5,7 +5,6 @@ var style = html.style([
   body {
     font-family: sans-serif;
     background: #3c80ffff;
-    color: #333;
   }
 
   h1 {
