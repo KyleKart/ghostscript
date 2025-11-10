@@ -17,7 +17,6 @@ export function el(tag, attrsOrChildren = {}, maybeChildren) {
 
   const element = document.createElement(tag);
 
-  // set attributes
   for (const [key, value] of Object.entries(attrs)) {
     if (key.startsWith("on") && typeof value === "function") {
       element.addEventListener(key.slice(2).toLowerCase(), value);
@@ -26,7 +25,6 @@ export function el(tag, attrsOrChildren = {}, maybeChildren) {
     }
   }
 
-  // normalize children
   if (!Array.isArray(children)) children = [children];
 
   for (const child of children) {
@@ -42,23 +40,19 @@ function appendChild(elm, child) {
   } else if (Array.isArray(child)) {
     child.forEach(c => appendChild(elm, c));
   } else if (child && child.__isTextNode) {
-    // convert text() wrapper to real TextNode
     elm.appendChild(document.createTextNode(child.value));
   } else if (typeof child === "string" || typeof child === "number") {
     elm.appendChild(document.createTextNode(child));
   }
 }
 
-// text() helper
 export function text(str) {
   return { __isTextNode: true, value: str };
 }
 
-// references
 export const body = document.body;
 export const head = document.head;
 
-// tag helpers
 export const div = (...args) => el("div", ...args);
 export const p = (...args) => el("p", ...args);
 export const h1 = (...args) => el("h1", ...args);
