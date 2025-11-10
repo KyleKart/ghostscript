@@ -4,11 +4,11 @@ var style = html.style([
   `
   body {
     font-family: sans-serif;
-    background: #3c80ffff !important;
+    background: #3c80ffff;
   }
 
   h1 {
-    color: #222;
+    color: #c9c9c9ff;
   }
 
   p {
