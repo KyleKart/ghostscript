@@ -34,3 +34,4 @@ export const section = (...args) => el("section", ...args);
 export const article = (...args) => el("article", ...args);
 export const header = (...args) => el("header", ...args);
 export const footer = (...args) => el("footer", ...args);
+export const title = (...args) => el("title", ...args);
