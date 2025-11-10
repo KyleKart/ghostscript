@@ -1,53 +1,17 @@
-export function el(tag, attrsOrChildren = {}, maybeChildren) {
-  let attrs, children;
+// html.js
 
-  if (
-    attrsOrChildren == null ||
-    Array.isArray(attrsOrChildren) ||
-    typeof attrsOrChildren === "string" ||
-    typeof attrsOrChildren === "number" ||
-    attrsOrChildren instanceof Node
-  ) {
-    attrs = {};
-    children = attrsOrChildren;
-  } else {
-    attrs = attrsOrChildren || {};
-    children = maybeChildren;
-  }
-
+export function el(tag, children = []) {
   const element = document.createElement(tag);
-
-  for (const [key, value] of Object.entries(attrs)) {
-    if (key.startsWith("on") && typeof value === "function") {
-      element.addEventListener(key.slice(2).toLowerCase(), value);
-    } else {
-      element.setAttribute(key, value);
-    }
-  }
 
   if (!Array.isArray(children)) children = [children];
 
   for (const child of children) {
-    appendChild(element, child);
+    if (child instanceof Node) element.appendChild(child);
+    else if (Array.isArray(child)) child.forEach(c => element.appendChild(c instanceof Node ? c : document.createTextNode(c)));
+    else element.appendChild(document.createTextNode(child));
   }
 
   return element;
-}
-
-function appendChild(elm, child) {
-  if (child instanceof Node) {
-    elm.appendChild(child);
-  } else if (Array.isArray(child)) {
-    child.forEach(c => appendChild(elm, c));
-  } else if (child && child.__isTextNode) {
-    elm.appendChild(document.createTextNode(child.value));
-  } else if (typeof child === "string" || typeof child === "number") {
-    elm.appendChild(document.createTextNode(child));
-  }
-}
-
-export function text(str) {
-  return { __isTextNode: true, value: str };
 }
 
 export const body = document.body;
