@@ -123,6 +123,13 @@ end
 
         if (line === '' || line.startsWith('//')) continue;
 
+        const fnMatch = line.match(/^fn\s+(\w+)\s*\((.*?)\)/);
+        if (fnMatch) {
+          outputLines.push(`function ${fnMatch[1]}(${fnMatch[2]}) {`);
+          blockStack.push('block');
+          continue;
+        }
+
         const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
         if (fromMatch) {
           wsVar = fromMatch[1];
