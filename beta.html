@@ -178,144 +178,104 @@ end
     // PHASE 2: THE PARSER & CODE GENERATOR
     // Converts isolated tokens seamlessly into unified JavaScript.
     // ==========================================
-    function parseGhostScript(ghostSource) {
-      const tokens = tokenize(ghostSource);
-      let outputLines = [];
-      let currentLineTokens = [];
-      let blockStack = [];
-      let loopDepth = 0;
-      let activeLoopIterators = ['i'];
+function parseGhostScript(ghostSource) {
+  let ghostCode = ghostSource;
 
-      // Process tokens line-by-line to manage structure blocks cleanly
-      for (let t = 0; t < tokens.length; t++) {
-        const token = tokens[t];
+  // 1. Extract and safeguard all string literals so we don't break them
+  const strings = [];
+  ghostCode = ghostCode.replace(/(["'`])(.*?)\1/g, (match) => {
+    strings.push(match);
+    return `__GHOST_STR_${strings.length - 1}__`;
+  });
 
-        if (token.type !== 'NEWLINE') {
-          currentLineTokens.push(token);
-          if (t !== tokens.length - 1) continue; // Keep gathering line items
+  // 2. Now that strings are safe, explicitly convert all instances of .+ into a safe addition pattern
+  // We wrap both sides in String() to guarantee that 1 .+ 1 behaves as "1" + "1" -> "11"
+  // This runs multiple times to catch long, chained connections (a .+ b .+ c)
+  while (ghostCode.includes('.+')) {
+    ghostCode = ghostCode.replace(/([a-zA-Z0-9_$\(\)]+)\s*\.\+\s*([a-zA-Z0-9_$\(\)]+)/g, 'String($1) + String($2)');
+  }
+
+  // 3. Put the original safe strings back exactly where they belong
+  ghostCode = ghostCode.replace(/__GHOST_STR_(\d+)__/g, (match, index) => {
+    return strings[parseInt(index)];
+  });
+
+  // 4. Map the standard keywords cleanly
+  ghostCode = ghostCode.replace(/\bout\b/g, 'console.log');
+  ghostCode = ghostCode.replace(/\berr\b/g, 'console.error');
+  ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
+  ghostCode = ghostCode.replace(/\bwss\((.+?)\)/g, 'new WebSocket("wss://" + $1)');
+
+  // 5. Build out line block rules
+  const lines = ghostCode.split('\n').map(line => line.trim());
+  const controlKeywords = ['if', 'else if', 'else', 'while', 'switch', 'for'];
+
+  let outputLines = [];
+  let blockStack = [];
+  let loopDepth = 0;
+  let activeLoopIterators = ['i'];
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    if (line === '' || line.startsWith('//')) continue;
+
+    const firstWord = line.split(/[ (\t]/)[0];
+
+    if (firstWord === 'fn') {
+      line = line.replace(/^fn\s+(\w+)\s*\((.*?)\)/, 'function $1($2) {');
+      blockStack.push('block');
+    } 
+    else if (firstWord === 'from') {
+      const wsVar = line.match(/from\s*\(\s*(\w+)\s*\)/)?.[1];
+      line = `${wsVar}.onmessage = async (event) => {`;
+      blockStack.push('from');
+    } 
+    else if (firstWord === 'for') {
+      const countMatch = line.match(/for\s*\(\s*(.+?)\s*\)/)?.[1];
+      const iterVar = loopDepth === 0 ? 'i' : `i_${loopDepth}`;
+      activeLoopIterators.push(iterVar);
+      loopDepth++;
+      line = `for (let ${iterVar} = 0; ${iterVar} < ${countMatch}; ${iterVar}++) {`;
+      blockStack.push('block');
+    } 
+    else if (firstWord === 'per') {
+      const moduloNum = line.match(/per\s*\(\s*(\d+)\s*\)/)?.[1];
+      const scopeIterator = activeLoopIterators[activeLoopIterators.length - 1] || 'i';
+      line = `if (${scopeIterator} % ${moduloNum} === 0) {`;
+      blockStack.push('block');
+    } 
+    else if (firstWord === 'end') {
+      if (blockStack.length > 0) {
+        const closing = blockStack.pop();
+        line = '}';
+        if (activeLoopIterators.length > 1 && closing === 'block') {
+          activeLoopIterators.pop();
+          loopDepth--;
         }
-
-        if (currentLineTokens.length === 0) continue;
-
-        // Process a raw line arrays back into targeted strings
-        let lineStr = currentLineTokens.map(tok => tok.value).join(' ');
-
-        // Process Keyword Map Tables
-        lineStr = lineStr.replace(/\bout\b/g, 'console.log');
-        lineStr = lineStr.replace(/\berr\b/g, 'console.error');
-        lineStr = lineStr.replace(/\bvar\b/g, 'let');
-
-        // Handle explicit dynamic WebSocket components
-        lineStr = lineStr.replace(/\bwss\((.+?)\)/g, 'new WebSocket("wss://" + $1)');
-
-        // Extract and transform functional keyword components
-        const firstToken = currentLineTokens[0];
-
-        if (firstToken.type === 'WORD' && firstToken.value === 'fn') {
-          lineStr = lineStr.replace(/^fn\s+(\w+)\s*\((.*?)\)/, 'function $1($2) {');
-          blockStack.push('block');
-        } 
-        else if (firstToken.type === 'WORD' && firstToken.value === 'from') {
-          const wsVar = lineStr.match(/from\s*\(\s*(\w+)\s*\)/)?.[1];
-          lineStr = `${wsVar}.onmessage = async (event) => {`;
-          blockStack.push('from');
-        } 
-        else if (firstToken.type === 'WORD' && firstToken.value === 'for') {
-          const countMatch = lineStr.match(/for\s*\(\s*(.+?)\s*\)/)?.[1];
-          const iterVar = loopDepth === 0 ? 'i' : `i_${loopDepth}`;
-          activeLoopIterators.push(iterVar);
-          loopDepth++;
-          lineStr = `for (let ${iterVar} = 0; ${iterVar} < ${countMatch}; ${iterVar}++) {`;
-          blockStack.push('block');
-        } 
-        else if (firstToken.type === 'WORD' && firstToken.value === 'per') {
-          const moduloNum = lineStr.match(/per\s*\(\s*(\d+)\s*\)/)?.[1];
-          const scopeIterator = activeLoopIterators[activeLoopIterators.length - 1] || 'i';
-          lineStr = `if (${scopeIterator} % ${moduloNum} === 0) {`;
-          blockStack.push('block');
-        } 
-        else if (firstToken.type === 'WORD' && firstToken.value === 'end') {
-          if (blockStack.length > 0) {
-            const closing = blockStack.pop();
-            lineStr = '}';
-            if (activeLoopIterators.length > 1 && closing === 'block') {
-              activeLoopIterators.pop();
-              loopDepth--;
-            }
-          } else {
-            lineStr = '// stray end';
-          }
-        } 
-        else {
-          // Wrap generic conditional parameters (if, while, switch) with standard block openers
-          const controlKeywords = ['if', 'else if', 'else', 'while', 'switch'];
-          const isControl = controlKeywords.some(kw => lineStr.startsWith(kw));
-          if (isControl) {
-            lineStr += ' {';
-            blockStack.push('block');
-          }
-        }
-
-        // Apply clean inline stream edits for custom strings inside the compiled expressions
-        if (blockStack.includes('from')) {
-          lineStr = lineStr.replace(/\b\w+\.msg\b/g, 'event.data');
-        }
-
-        // Process clean compilation for string operators inside instructions
-        // Looks for expressions split across text components and resolves safely through String conversion arrays
-        if (currentLineTokens.some(tok => tok.type === 'CONCAT')) {
-          let assembledLine = "";
-          let concatSequence = [];
-          
-          for (let c = 0; c < currentLineTokens.length; c++) {
-            const tok = currentLineTokens[c];
-            if (tok.type === 'CONCAT') {
-              continue;
-            }
-            
-            // Build groups cleanly out of individual string sequences
-            let val = tok.value;
-            if (val === 'out' || val === 'console.log') val = 'console.log';
-            if (val === 'var' || val === 'let') val = 'let';
-
-            if (tok.type === 'STRING' || tok.type === 'WORD' || tok.type === 'OPERATOR') {
-              // Read look-ahead strings to safely join values
-              if (currentLineTokens[c - 1]?.type === 'CONCAT' || currentLineTokens[c + 1]?.type === 'CONCAT') {
-                concatSequence.push(val);
-              } else {
-                if (concatSequence.length > 0) {
-                  assembledLine += `String(${concatSequence.join(' ')}).concat()`;
-                  concatSequence = [];
-                }
-                assembledLine += " " + val;
-              }
-            }
-          }
-          
-          if (concatSequence.length > 0) {
-             // Formats into sequential string parameter chains: "".concat(arg1, arg2)
-             const convertedGroup = `"".concat(${concatSequence.map(item => {
-               // Leave strings quotes bare; map dynamic identifiers to strict parameter signatures
-               return item;
-             }).join(', ')})`;
-             
-             // Restore line wrapper context definitions safely
-             lineStr = lineStr.replace(/console\.log\((.+?)\)/, `console.log(${convertedGroup})`);
-          }
-        }
-
-        outputLines.push(lineStr);
-        currentLineTokens = []; // Clear for next sweep
+      } else {
+        line = '// stray end';
       }
-
-      // Safeguard remaining hanging blocks
-      while (blockStack.length > 0) {
-        outputLines.push('}');
-        blockStack.pop();
-      }
-
-      return outputLines.join('\n');
+    } 
+    else if (controlKeywords.includes(firstWord)) {
+      line += ' {';
+      blockStack.push('block');
     }
+
+    if (blockStack.includes('from')) {
+      line = line.replace(/\b\w+\.msg\b/g, 'event.data');
+    }
+
+    outputLines.push(line);
+  }
+
+  while (blockStack.length > 0) {
+    outputLines.push('}');
+    blockStack.pop();
+  }
+
+  return outputLines.join('\n');
+}
 
     // ==========================================
     // PHASE 3: ISOLATED CONTEXT EXECUTION
