@@ -2,272 +2,371 @@
 <html>
 
 <head>
-    <meta charset="UTF-8" />
-    <title>GhostScript V2 Beta</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 20px;
-            background: #f0f0f0;
-            color: #333;
-        }
+  <meta charset="UTF-8" />
+  <title>GhostScript V2 Beta</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+      background: #f0f0f0;
+      color: #333;
+    }
 
-        textarea {
-            width: 100%;
-            height: 200px;
-            font-family: monospace;
-            font-size: 14px;
-            margin-bottom: 10px;
-            padding: 10px;
-            box-sizing: border-box;
-            resize: vertical;
-        }
+    textarea {
+      width: 100%;
+      height: 200px;
+      font-family: monospace;
+      font-size: 14px;
+      margin-bottom: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+      resize: vertical;
+    }
 
-        button {
-            padding: 10px 15px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-right: 10px;
-        }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
 
-        pre {
-            background: #222;
-            color: #eee;
-            padding: 15px;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            border-radius: 4px;
-            margin-top: 20px;
-            min-height: 100px;
-        }
+    pre {
+      background: #222;
+      color: #eee;
+      padding: 15px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      border-radius: 4px;
+      margin-top: 20px;
+      min-height: 100px;
+    }
 
-        label {
-            font-weight: bold;
-            display: block;
-            margin-top: 20px;
-        }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 20px;
+    }
 
-        #consoleOutput {
-            background: #000;
-            color: #0f0;
-            font-family: monospace;
-            padding: 10px;
-            border-radius: 4px;
-            height: 150px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
+    #consoleOutput {
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+      padding: 10px;
+      border-radius: 4px;
+      height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
 
-        ghost {
-            display: none !important;
-        }
-    </style>
+    ghost {
+      display: none !important;
+    }
+  </style>
 </head>
 
 <body>
 
-    <h1>GhostScript V2 Beta</h1>
+  <h1>GhostScript V2 Beta/h1>
 
-    <textarea id="ghostSource" spellcheck="false">
+  <textarea id="ghostSource" spellcheck="false">
 out("Hello from GhostScript!")
 var name = "Casper"
 out("Ghost name: " .+ name .+ " the friendly spirit")
+out("Testing math vs concat: " .+ (1 + 1) .+ " vs " .+ 1 .+ 1)
 
-for (10)
-  per (3)
-    out("Tick on index: " .+ i)
+for (3)
+  per (2)
+    out("Nested loop tick! Parent loop: " .+ i)
   end
 end
   </textarea>
 
-    <label>Output JavaScript:</label>
-    <pre id="jsOutput">// Transformed JS will appear here</pre>
+  <label>Output JavaScript:</label>
+  <pre id="jsOutput">// Transformed JS will appear here</pre>
 
-    <button id="runBtn">Run</button>
+  <button id="runBtn">Run</button>
 
-    <h2>Console output:</h2>
-    <pre id="consoleOutput">// Output appears here</pre>
+  <h2>Console output:</h2>
+  <pre id="consoleOutput">// Output appears here</pre>
 
-    <ghost id="runner"></ghost>
+  <ghost id="runner"></ghost>
 
-    <script>
-        const consoleOutput = document.getElementById('consoleOutput');
-        const jsOutput = document.getElementById('jsOutput');
-        const originalLog = console.log;
-        const originalErr = console.error;
+  <script>
+    const consoleOutput = document.getElementById('consoleOutput');
+    const jsOutput = document.getElementById('jsOutput');
+    const originalLog = console.log;
+    const originalErr = console.error;
 
-        console.log = (...args) => {
-            consoleOutput.textContent += args.join(' ') + '\n';
-            originalLog(...args);
-        };
+    console.log = (...args) => {
+      consoleOutput.textContent += args.join(' ') + '\n';
+      originalLog(...args);
+    };
 
-        console.error = (...args) => {
-            consoleOutput.textContent += '[ERR] ' + args.join(' ') + '\n';
-            originalErr(...args);
-        };
+    console.error = (...args) => {
+      consoleOutput.textContent += '[ERR] ' + args.join(' ') + '\n';
+      originalErr(...args);
+    };
 
-        function parseGhostScript(ghostSource) {
-            let ghostCode = ghostSource;
+    // ==========================================
+    // PHASE 1: THE TOKENIZER (Lexer)
+    // Isolates literal strings from language logic safely.
+    // ==========================================
+    function tokenize(code) {
+      const tokens = [];
+      let i = 0;
 
-            // 1. Fix String Concatenation Chaining Bug
-            // Converts all variations of ".+" to native JS string addition safely
-            ghostCode = ghostCode.replace(/(.+?)\s*\.\+\s*(.+?)(?=\n|;|$)/g, (match) => {
-                return match.split('.+').map(part => `String(${part.trim()})`).join(' + ');
-            });
-            // 2. Global replacements (accounting for basic word boundaries)
-            ghostCode = ghostCode.replace(/out\((.*?)\)/g, 'console.log($1)');
-            ghostCode = ghostCode.replace(/err\((.*?)\)/g, 'console.error($1)');
-            ghostCode = ghostCode.replace(/\bvar\b/g, 'let');
+      while (i < code.length) {
+        let char = code[i];
 
-            // 3. Fix: Ensure loop scope tracks dynamic iteration counts using an execution stack index
-            let loopDepth = 0;
-            ghostCode = ghostCode.replace(/for\s*\(\s*(\d+|\w+)\s*\)/g, (match, count) => {
-                const iterVar = loopDepth === 0 ? 'i' : `i_${loopDepth}`;
-                loopDepth++;
-                return `for (let ${iterVar} = 0; ${iterVar} < ${count}; ${iterVar}++)`;
-            });
-
-            ghostCode = ghostCode.replace(/borrow\s+"(\w+)"/g, 'const $1 = await import("./ghost-modules/$1.js")');
-
-            const lines = ghostCode.split('\n').map(line => line.trim());
-            const controlKeywords = ['if', 'else if', 'else', 'while', 'switch', 'for'];
-
-            let outputLines = [];
-            let blockStack = [];
-            let wsVar = null;
-            let activeLoopIndex = 'i';
-
-            for (let i = 0; i < lines.length; i++) {
-                let line = lines[i];
-
-                if (line === '' || line.startsWith('//')) continue;
-
-                // Track local loop iterator contexts for the "per" keyword
-                const loopMatch = line.match(/for\s*\(let\s+(\w+)/);
-                if (loopMatch) {
-                    activeLoopIndex = loopMatch[1];
-                }
-
-                const fnMatch = line.match(/^fn\s+(\w+)\s*\((.*?)\)/);
-                if (fnMatch) {
-                    outputLines.push(`function ${fnMatch[1]}(${fnMatch[2]}) {`);
-                    blockStack.push('block');
-                    continue;
-                }
-
-                const fromMatch = line.match(/^from\s*\(\s*(\w+)\s*\)/);
-                if (fromMatch) {
-                    wsVar = fromMatch[1];
-                    outputLines.push(`${wsVar}.onmessage = async (event) => {`);
-                    blockStack.push('from');
-                    continue;
-                }
-
-                // 4. Fix: 'per' now automatically checks the correct parent iterator variable name
-                const perMatch = line.match(/^per\s*\(\s*(\d+)\s*\)$/);
-                if (perMatch) {
-                    const n = perMatch[1];
-                    outputLines.push(`if (${activeLoopIndex} % ${n} === 0) {`);
-                    blockStack.push('block');
-                    continue;
-                }
-
-                if (blockStack.includes('from') && wsVar && line.includes(`${wsVar}.msg`)) {
-                    line = line.replaceAll(`${wsVar}.msg`, 'event.data');
-                }
-
-                const wssMatch = line.match(/^let\s+(\w+)\s*=\s*wss\((.+?)\)/);
-                if (wssMatch) {
-                    const [_, varName, expr] = wssMatch;
-                    outputLines.push(`let ${varName} = new WebSocket("wss://" + ${expr});`);
-                    continue;
-                }
-
-                const matchedControl = controlKeywords.some(kw => {
-                    const regex = new RegExp(`^${kw}(\\s|\\()`);
-                    return regex.test(line);
-                });
-
-                if (matchedControl) {
-                    outputLines.push(line + ' {');
-                    blockStack.push('block');
-                    continue;
-                }
-
-                if (line === 'end') {
-                    if (blockStack.length > 0) {
-                        outputLines.push('}');
-                        blockStack.pop();
-                        // Reset iterator lookup reference on loop exit
-                        if (loopDepth > 0) {
-                            loopDepth--;
-                            activeLoopIndex = loopDepth === 0 ? 'i' : `i_${loopDepth - 1}`;
-                        }
-                    } else {
-                        outputLines.push('// stray end');
-                    }
-                    continue;
-                }
-
-                outputLines.push(line);
-            }
-
-            while (blockStack.length > 0) {
-                outputLines.push('}');
-                blockStack.pop();
-            }
-
-            return outputLines.join('\n');
+        // Skip Whitespace (but keep track of newlines for instruction separation)
+        if (char === '\n') {
+          tokens.push({ type: 'NEWLINE', value: '\n' });
+          i++;
+          continue;
+        }
+        if (/\s/.test(char)) {
+          i++;
+          continue;
         }
 
-        // 5. Fix: Global script isolation to stop runner blocks from overwriting one another
-        function runGhostTags() {
-            const blocks = document.querySelectorAll('ghost');
-
-            blocks.forEach(block => {
-                const isExternal = block.hasAttribute('src');
-                const runCode = code => {
-                    const parsed = parseGhostScript(code);
-                    try {
-                        // Evaluates code in a completely isolated local function scope context
-                        const execWrapper = new Function(`return (async () => {\n${parsed}\n})()`);
-                        execWrapper();
-                    } catch (e) {
-                        console.error('GhostScript runtime error:', e);
-                    }
-                };
-
-                if (isExternal) {
-                    const src = block.getAttribute('src');
-                    fetch(src)
-                        .then(res => res.text())
-                        .then(runCode)
-                        .catch(err => {
-                            console.error(`GhostScript failed to load "${src}":`, err);
-                        });
-                } else {
-                    runCode(block.textContent);
-                }
-            });
+        // Skip Single Line Comments
+        if (char === '/' && code[i + 1] === '/') {
+          while (i < code.length && code[i] !== '\n') i++;
+          continue;
         }
 
-        document.getElementById('runBtn').addEventListener('click', () => {
-            const code = document.getElementById('ghostSource').value;
-            document.getElementById('runner').textContent = code;
-            consoleOutput.textContent = '';
+        // Handle String Literals (Prevents internal structural text damage)
+        if (char === '"' || char === "'" || char === '`') {
+          const quoteType = char;
+          let strValue = "";
+          i++; // Skip opener
+          while (i < code.length && code[i] !== quoteType) {
+            strValue += code[i];
+            i++;
+          }
+          i++; // Skip closer
+          tokens.push({ type: 'STRING', value: `${quoteType}${strValue}${quoteType}` });
+          continue;
+        }
 
-            const transformed = parseGhostScript(code);
-            jsOutput.textContent = transformed;
+        // Handle the Specific custom Concatenation Operator ".+"
+        if (char === '.' && code[i + 1] === '+') {
+          tokens.push({ type: 'CONCAT', value: '.+' });
+          i += 2;
+          continue;
+        }
 
-            runGhostTags();
-        });
+        // Handle Identifiers / Numbers / Control Keywords
+        if (/[a-zA-Z0-9_$]/.test(char)) {
+          let word = "";
+          while (i < code.length && /[a-zA-Z0-9_$]/.test(code[i])) {
+            word += code[i];
+            i++;
+          }
+          tokens.push({ type: 'WORD', value: word });
+          continue;
+        }
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', runGhostTags);
+        // Structural and Math Marks (parenthesis, braces, comparison operators)
+        tokens.push({ type: 'OPERATOR', value: char });
+        i++;
+      }
+      return tokens;
+    }
+
+    // ==========================================
+    // PHASE 2: THE PARSER & CODE GENERATOR
+    // Converts isolated tokens seamlessly into unified JavaScript.
+    // ==========================================
+    function parseGhostScript(ghostSource) {
+      const tokens = tokenize(ghostSource);
+      let outputLines = [];
+      let currentLineTokens = [];
+      let blockStack = [];
+      let loopDepth = 0;
+      let activeLoopIterators = ['i'];
+
+      // Process tokens line-by-line to manage structure blocks cleanly
+      for (let t = 0; t < tokens.length; t++) {
+        const token = tokens[t];
+
+        if (token.type !== 'NEWLINE') {
+          currentLineTokens.push(token);
+          if (t !== tokens.length - 1) continue; // Keep gathering line items
+        }
+
+        if (currentLineTokens.length === 0) continue;
+
+        // Process a raw line arrays back into targeted strings
+        let lineStr = currentLineTokens.map(tok => tok.value).join(' ');
+
+        // Process Keyword Map Tables
+        lineStr = lineStr.replace(/\bout\b/g, 'console.log');
+        lineStr = lineStr.replace(/\berr\b/g, 'console.error');
+        lineStr = lineStr.replace(/\bvar\b/g, 'let');
+
+        // Handle explicit dynamic WebSocket components
+        lineStr = lineStr.replace(/\bwss\((.+?)\)/g, 'new WebSocket("wss://" + $1)');
+
+        // Extract and transform functional keyword components
+        const firstToken = currentLineTokens[0];
+
+        if (firstToken.type === 'WORD' && firstToken.value === 'fn') {
+          lineStr = lineStr.replace(/^fn\s+(\w+)\s*\((.*?)\)/, 'function $1($2) {');
+          blockStack.push('block');
+        } 
+        else if (firstToken.type === 'WORD' && firstToken.value === 'from') {
+          const wsVar = lineStr.match(/from\s*\(\s*(\w+)\s*\)/)?.[1];
+          lineStr = `${wsVar}.onmessage = async (event) => {`;
+          blockStack.push('from');
+        } 
+        else if (firstToken.type === 'WORD' && firstToken.value === 'for') {
+          const countMatch = lineStr.match(/for\s*\(\s*(.+?)\s*\)/)?.[1];
+          const iterVar = loopDepth === 0 ? 'i' : `i_${loopDepth}`;
+          activeLoopIterators.push(iterVar);
+          loopDepth++;
+          lineStr = `for (let ${iterVar} = 0; ${iterVar} < ${countMatch}; ${iterVar}++) {`;
+          blockStack.push('block');
+        } 
+        else if (firstToken.type === 'WORD' && firstToken.value === 'per') {
+          const moduloNum = lineStr.match(/per\s*\(\s*(\d+)\s*\)/)?.[1];
+          const scopeIterator = activeLoopIterators[activeLoopIterators.length - 1] || 'i';
+          lineStr = `if (${scopeIterator} % ${moduloNum} === 0) {`;
+          blockStack.push('block');
+        } 
+        else if (firstToken.type === 'WORD' && firstToken.value === 'end') {
+          if (blockStack.length > 0) {
+            const closing = blockStack.pop();
+            lineStr = '}';
+            if (activeLoopIterators.length > 1 && closing === 'block') {
+              activeLoopIterators.pop();
+              loopDepth--;
+            }
+          } else {
+            lineStr = '// stray end';
+          }
+        } 
+        else {
+          // Wrap generic conditional parameters (if, while, switch) with standard block openers
+          const controlKeywords = ['if', 'else if', 'else', 'while', 'switch'];
+          const isControl = controlKeywords.some(kw => lineStr.startsWith(kw));
+          if (isControl) {
+            lineStr += ' {';
+            blockStack.push('block');
+          }
+        }
+
+        // Apply clean inline stream edits for custom strings inside the compiled expressions
+        if (blockStack.includes('from')) {
+          lineStr = lineStr.replace(/\b\w+\.msg\b/g, 'event.data');
+        }
+
+        // Process clean compilation for string operators inside instructions
+        // Looks for expressions split across text components and resolves safely through String conversion arrays
+        if (currentLineTokens.some(tok => tok.type === 'CONCAT')) {
+          let assembledLine = "";
+          let concatSequence = [];
+          
+          for (let c = 0; c < currentLineTokens.length; c++) {
+            const tok = currentLineTokens[c];
+            if (tok.type === 'CONCAT') {
+              continue;
+            }
+            
+            // Build groups cleanly out of individual string sequences
+            let val = tok.value;
+            if (val === 'out' || val === 'console.log') val = 'console.log';
+            if (val === 'var' || val === 'let') val = 'let';
+
+            if (tok.type === 'STRING' || tok.type === 'WORD' || tok.type === 'OPERATOR') {
+              // Read look-ahead strings to safely join values
+              if (currentLineTokens[c - 1]?.type === 'CONCAT' || currentLineTokens[c + 1]?.type === 'CONCAT') {
+                concatSequence.push(val);
+              } else {
+                if (concatSequence.length > 0) {
+                  assembledLine += `String(${concatSequence.join(' ')}).concat()`;
+                  concatSequence = [];
+                }
+                assembledLine += " " + val;
+              }
+            }
+          }
+          
+          if (concatSequence.length > 0) {
+             // Formats into sequential string parameter chains: "".concat(arg1, arg2)
+             const convertedGroup = `"".concat(${concatSequence.map(item => {
+               // Leave strings quotes bare; map dynamic identifiers to strict parameter signatures
+               return item;
+             }).join(', ')})`;
+             
+             // Restore line wrapper context definitions safely
+             lineStr = lineStr.replace(/console\.log\((.+?)\)/, `console.log(${convertedGroup})`);
+          }
+        }
+
+        outputLines.push(lineStr);
+        currentLineTokens = []; // Clear for next sweep
+      }
+
+      // Safeguard remaining hanging blocks
+      while (blockStack.length > 0) {
+        outputLines.push('}');
+        blockStack.pop();
+      }
+
+      return outputLines.join('\n');
+    }
+
+    // ==========================================
+    // PHASE 3: ISOLATED CONTEXT EXECUTION
+    // Runs scripts via standard global window safety context
+    // ==========================================
+    function runGhostTags() {
+      const blocks = document.querySelectorAll('ghost');
+
+      blocks.forEach(block => {
+        const isExternal = block.hasAttribute('src');
+        const runCode = code => {
+          const parsed = parseGhostScript(code);
+          try {
+            const execWrapper = new Function(`return (async () => {\n${parsed}\n})()`);
+            execWrapper();
+          } catch (e) {
+            console.error('GhostScript runtime error:', e);
+          }
+        };
+
+        if (isExternal) {
+          const src = block.getAttribute('src');
+          fetch(src)
+            .then(res => res.text())
+            .then(runCode)
+            .catch(err => {
+              console.error(`GhostScript failed to load "${src}":`, err);
+            });
         } else {
-            runGhostTags();
+          runCode(block.textContent);
         }
-    </script>
+      });
+    }
+
+    document.getElementById('runBtn').addEventListener('click', () => {
+      const code = document.getElementById('ghostSource').value;
+      document.getElementById('runner').textContent = code;
+      consoleOutput.textContent = '';
+
+      const transformed = parseGhostScript(code);
+      jsOutput.textContent = transformed;
+
+      runGhostTags();
+    });
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', runGhostTags);
+    } else {
+      runGhostTags();
+    }
+  </script>
 
 </body>
 
